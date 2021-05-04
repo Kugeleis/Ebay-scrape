@@ -7,6 +7,8 @@ from selenium import webdriver
 from time import sleep
 import matplotlib.pyplot as plt
 import csv
+import os
+from datetime import datetime
 
 # Change these values accordingly
 ebaySite = "https://www.ebay.de/"
@@ -20,6 +22,7 @@ wait = .5
 minPrice = 15.0
 maxPrice = 1000.0
 sold = True
+plot = False
 
 # XPath setup
 priceX = ".//span[@class = 's-item__price']/span[@class = 'POSITIVE']" if sold else ".//span[@class = 's-item__price']"
@@ -60,7 +63,8 @@ num = 1
 excludeTerm = ' -' + ' -'.join(excludeTerms)
 
 # Go to Ebay
-driver = webdriver.Firefox(executable_path="./driver/geckodriver")
+driver = webdriver.Firefox(
+    executable_path="./driver/geckodriver", service_log_path=os.path.devnull)
 driver.get(ebaySite)
 
 # Click cookie warning away
@@ -118,7 +122,7 @@ for searchTerm in searchTerms:
             try:
                 titleElem = listingElems[a].find_element_by_xpath(titleX).text
                 priceText = listingElems[a].find_element_by_xpath(priceX).text
-                print('Preis: ', priceText)
+                # print('Preis: ', priceText)
 
                 if(priceText.startswith(currencySign) == True):
                     price = float(priceText.replace(
@@ -174,40 +178,42 @@ for searchTerm in searchTerms:
     print("Median:      " + currencySign + str(medianPrice))
     print("Excluded : " + str(excludedPrices))
 
+    timeStamp = datetime.now().strftime("%d-%b-%Y %H:%M")
+
     with open('ebayproducts.csv', 'a', encoding="utf-8", newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([searchTerm, testres, amountStr,
-                        sumPrices, meanPrice, excludedPrices])
-    # Draw a plot
-    x = entries
-    y = prices
-    plt.plot(x, y)
-    plt.xlabel('entry number')
-    plt.ylabel('price (in ' + currencySign + ', on ' + ebaySite + ')')
-    plt.title(searchTerm)
-    plt.show()
+        writer.writerow([searchTerm, amountStr, meanPrice,
+                        medianPrice, excludedPrices, timeStamp])
+    if plot:  # Draw a plot
+        x = entries
+        y = prices
+        plt.plot(x, y)
+        plt.xlabel('entry number')
+        plt.ylabel('price (in ' + currencySign + ', on ' + ebaySite + ')')
+        plt.title(searchTerm)
+        plt.show()
 driver.close()
 
-# Show info about different means values in a bar chart
-left = arrayNum
-height = meansArray
-tick_label = searchTerms
-plt.bar(left, height, tick_label=tick_label,
-        width=0.8, color=['red', 'blue'])
-plt.xlabel('products')
-plt.ylabel('mean price')
-plt.title('Overview (source: ebay.com)')
-plt.xticks(rotation='vertical')
-plt.show()
+if plot:  # Show info about different means values in a bar chart
+    left = arrayNum
+    height = meansArray
+    tick_label = searchTerms
+    plt.bar(left, height, tick_label=tick_label,
+            width=0.8, color=['red', 'blue'])
+    plt.xlabel('products')
+    plt.ylabel('mean price')
+    plt.title('Overview (source: ebay.com)')
+    plt.xticks(rotation='vertical')
+    plt.show()
 
-# amounts in a pie chart
-activities = searchTerms
-slices = sumArray
-colors = ['r', 'y', 'g', 'b', 'yellowgreen',
-          'gold', 'lightskyblue', 'lightcoral']
-plt.pie(slices, labels=activities, colors=colors,
-        startangle=90, shadow=True,
-        radius=1.2, autopct='%1.1f%%')
-plt.title('Sum of Prices (source: '+ebaySite+')')
-# plt.legend()
-plt.show()
+    # amounts in a pie chart
+    activities = searchTerms
+    slices = sumArray
+    colors = ['r', 'y', 'g', 'b', 'yellowgreen',
+              'gold', 'lightskyblue', 'lightcoral']
+    plt.pie(slices, labels=activities, colors=colors,
+            startangle=90, shadow=True,
+            radius=1.2, autopct='%1.1f%%')
+    plt.title('Sum of Prices (source: '+ebaySite+')')
+    # plt.legend()
+    plt.show()

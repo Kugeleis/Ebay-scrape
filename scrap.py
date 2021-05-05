@@ -4,6 +4,7 @@
 """
 
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 from time import sleep
 import matplotlib.pyplot as plt
 import csv
@@ -63,8 +64,10 @@ num = 1
 excludeTerm = ' -' + ' -'.join(excludeTerms)
 
 # Go to Ebay
-driver = webdriver.Firefox(
-    executable_path="./driver/geckodriver", service_log_path=os.path.devnull)
+options = Options()
+options.headless = True
+driver = webdriver.Firefox(options=options,
+                           executable_path="./driver/geckodriver", service_log_path=os.path.devnull)
 driver.get(ebaySite)
 
 # Click cookie warning away

@@ -10,25 +10,31 @@ import matplotlib.pyplot as plt
 import csv
 import os
 from datetime import datetime
+import items
+import numpy as np
 
 # Change these values accordingly
 ebaySite = "https://www.ebay.de/"
-excludeTerms = ['Netzteil', 'Wandhalterung', 'Leerkarton']
-searchTerms = ["Fritz Box 7490",
-               "Fritz Box 7530", ]
+excludeTerms = ['Netzteil', 'Wandhalterung',
+                'Leerkarton', 'Display', 'Außenantenne']
+searchTerms = items.boxen
 pageAmounts = 20  # usually 50 entries per page
 currencySign = "EUR"
 wait = .5
 #Limits (exclusive)
-minPrice = 15.0
+minPrice = 5.0
 maxPrice = 1000.0
 sold = True
+soldString = '&LH_Sold=1&LH_Complete=1'
+noDefect = True
+noDefectString = '&LH_ItemCondition=2500|1500|1000|3000'
 plot = False
 
 # XPath setup
 priceX = ".//span[@class = 's-item__price']/span[@class = 'POSITIVE']" if sold else ".//span[@class = 's-item__price']"
 titleX = ".//h3[contains(concat(' ', @class, ' '), ' s-item__title ')]"
-
+options = Options()
+options.headless = False
 # Round a float number up
 
 
@@ -55,6 +61,14 @@ def median(lst):
         return (sortedLst[index] + sortedLst[index + 1])/2.0
 
 
+def removeOutlierIQR(lst):
+    Q1 = np.percentile(lst, 25)
+    Q3 = np.percentile(lst, 75)
+    IQR = Q3-Q1
+    l = np.array(lst)
+    return l[(l >= Q1-1.5*IQR) & (l <= Q3+1.5*IQR)]
+
+
 # Summary of all search terms
 meansArray = []
 mediansArray = []
@@ -64,8 +78,7 @@ num = 1
 excludeTerm = ' -' + ' -'.join(excludeTerms)
 
 # Go to Ebay
-options = Options()
-options.headless = True
+
 driver = webdriver.Firefox(options=options,
                            executable_path="./driver/geckodriver", service_log_path=os.path.devnull)
 driver.get(ebaySite)
@@ -91,9 +104,14 @@ for searchTerm in searchTerms:
     driver.find_element_by_class_name("btn.btn-prim.gh-spr").click()
     sleep(wait)
 
+    getString = driver.current_url
     if (sold):  # filter for sold items
-        driver.get(driver.current_url + '&LH_Sold=1&LH_Complete=1')
-        sleep(wait*2)
+        getString += soldString
+    if (noDefect):  # filter for non-defect items
+        getString += noDefectString
+    print(getString)
+    driver.get(getString)
+    sleep(wait*2)
 
     if(pageAmounts < 1):
         print("pageAmounts should be at least 1!")
@@ -153,8 +171,11 @@ for searchTerm in searchTerms:
         sleep(0.1)
 
     # Prepare results
+    print(searchTerm, prices)
+    if len(prices) < 1:
+        continue
     meanPrice = roundUp(mean(prices))
-    medianPrice = roundUp(median(prices))
+    medianPrice = roundUp(median(removeOutlierIQR(prices)))
     sumPrices = roundUp(sumPrices)
     amountStr = str(len(prices))
     test = driver.find_elements_by_xpath(
